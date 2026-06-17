@@ -23,12 +23,12 @@ public partial class MainWindow : Window
     private readonly HotkeyService _hotkeyService = new();
     private readonly ObservableCollection<WindowInfo> _windows = [];
     private readonly ObservableCollection<HideRule> _rules = [];
+    private readonly HashSet<IntPtr> _selectedWindowHandles = [];
 
     private AppSettings _settings = new();
     private TrayService? _trayService;
     private bool _allowClose;
     private bool _isLoading;
-    private bool _blockRuleFallbackAfterSelectedHide;
     private HotkeyAction? _recordingHotkey;
 
     public ObservableCollection<WindowInfo> Windows => _windows;
@@ -77,7 +77,7 @@ public partial class MainWindow : Window
 
         _trayService = new TrayService();
         _trayService.ShowRequested += (_, _) => ShowMainWindow();
-        _trayService.HideRequested += (_, _) => HideSelectedOrRules();
+        _trayService.HideRequested += (_, _) => HideWindowsByRules();
         _trayService.RestoreRequested += (_, _) => RestoreHiddenWindows();
         _trayService.ExitRequested += (_, _) => ExitApplication();
 
@@ -166,6 +166,7 @@ public partial class MainWindow : Window
 
     private void ClearSelectedWindowsButton_Click(object sender, RoutedEventArgs e)
     {
+        _selectedWindowHandles.Clear();
         foreach (var window in _windows)
         {
             window.IsSelected = false;
@@ -392,7 +393,7 @@ public partial class MainWindow : Window
         {
             if (action == HotkeyAction.Hide)
             {
-                HideSelectedOrRules();
+                HideSelectedFromHotkey();
             }
             else
             {
@@ -403,7 +404,6 @@ public partial class MainWindow : Window
 
     private void RefreshWindows()
     {
-        var selectedHandles = _windows.Where(window => window.IsSelected).Select(window => window.Handle).ToHashSet();
         foreach (var oldWindow in _windows)
         {
             oldWindow.PropertyChanged -= WindowInfo_PropertyChanged;
@@ -411,14 +411,18 @@ public partial class MainWindow : Window
 
         _windows.Clear();
         var query = SearchBox.Text?.Trim();
-        foreach (var window in _windowManager.GetOpenWindows())
+        var openWindows = _windowManager.GetOpenWindows();
+        var openHandles = openWindows.Select(window => window.Handle).ToHashSet();
+        _selectedWindowHandles.RemoveWhere(handle => !openHandles.Contains(handle) && !_windowManager.IsHiddenWindow(handle));
+
+        foreach (var window in openWindows)
         {
             if (!MatchesSearch(window, query))
             {
                 continue;
             }
 
-            window.IsSelected = selectedHandles.Contains(window.Handle);
+            window.IsSelected = _selectedWindowHandles.Contains(window.Handle);
             window.PropertyChanged += WindowInfo_PropertyChanged;
             _windows.Add(window);
         }
@@ -448,6 +452,18 @@ public partial class MainWindow : Window
     {
         if (e.PropertyName == nameof(WindowInfo.IsSelected))
         {
+            if (sender is WindowInfo window)
+            {
+                if (window.IsSelected)
+                {
+                    _selectedWindowHandles.Add(window.Handle);
+                }
+                else
+                {
+                    _selectedWindowHandles.Remove(window.Handle);
+                }
+            }
+
             UpdateSelectedCount();
         }
     }
@@ -458,26 +474,16 @@ public partial class MainWindow : Window
         SelectedCountText.Text = $"已选择 {count} 个窗口";
     }
 
-    private void HideSelectedOrRules()
+    private void HideSelectedFromHotkey()
     {
         var selected = _windows.Where(window => window.IsSelected).ToList();
-        if (selected.Count > 0)
+        if (selected.Count == 0)
         {
-            if (HideWindows(selected) > 0)
-            {
-                _blockRuleFallbackAfterSelectedHide = true;
-            }
+            SetStatus("没有勾选窗口；如需按规则隐藏，请点击“按规则隐藏”");
+            return;
         }
-        else
-        {
-            if (_blockRuleFallbackAfterSelectedHide)
-            {
-                SetStatus("没有新的勾选窗口；如需按规则隐藏，请点击“按规则隐藏”");
-                return;
-            }
 
-            HideWindowsByRules();
-        }
+        HideWindows(selected);
     }
 
     private void HideSelectedWindows()
@@ -489,15 +495,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (HideWindows(selected) > 0)
-        {
-            _blockRuleFallbackAfterSelectedHide = true;
-        }
+        HideWindows(selected);
     }
 
     private void HideWindowsByRules()
     {
-        _blockRuleFallbackAfterSelectedHide = false;
         SaveRules();
         var targets = _windowManager.GetOpenWindows()
             .Where(window => _ruleMatcher.IsMatch(window, _rules))
@@ -551,7 +553,6 @@ public partial class MainWindow : Window
 
     private void RestoreHiddenWindows()
     {
-        _blockRuleFallbackAfterSelectedHide = false;
         var restored = _windowManager.RestoreHiddenWindows();
         RefreshWindows();
         UpdateHiddenCount();

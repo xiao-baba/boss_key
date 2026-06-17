@@ -11,6 +11,8 @@ public sealed class WindowManager
 
     public int HiddenWindowCount => _hiddenWindows.Count;
 
+    public bool IsHiddenWindow(IntPtr handle) => _hiddenWindows.Contains(handle);
+
     public IReadOnlyList<WindowInfo> GetOpenWindows()
     {
         var windows = new List<WindowInfo>();
