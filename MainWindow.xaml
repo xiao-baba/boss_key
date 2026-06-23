@@ -572,7 +572,7 @@
                                         <TextBlock Text="隐藏快捷键"
                                                    FontSize="16"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="优先隐藏当前勾选窗口；需要规则隐藏时请使用按规则隐藏按钮。"
+                                        <TextBlock Text="只隐藏当前勾选窗口；规则隐藏请使用“按规则隐藏”按钮。"
                                                    Margin="0,4,0,0"
                                                    FontSize="12.5"
                                                    Foreground="{DynamicResource MutedTextBrush}" />

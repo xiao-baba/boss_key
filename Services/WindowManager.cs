@@ -90,7 +90,32 @@ public sealed class WindowManager
         }
 
         NativeMethods.ShowWindow(handle, NativeMethods.SW_HIDE);
-        if (NativeMethods.IsWindowVisible(handle))
+        if (IsHidden(handle))
+        {
+            _hiddenWindows.Add(handle);
+            return true;
+        }
+
+        NativeMethods.ShowWindowAsync(handle, NativeMethods.SW_HIDE);
+        if (IsHidden(handle))
+        {
+            _hiddenWindows.Add(handle);
+            return true;
+        }
+
+        NativeMethods.SetWindowPos(
+            handle,
+            IntPtr.Zero,
+            0,
+            0,
+            0,
+            0,
+            NativeMethods.SWP_HIDEWINDOW
+                | NativeMethods.SWP_NOMOVE
+                | NativeMethods.SWP_NOSIZE
+                | NativeMethods.SWP_NOZORDER
+                | NativeMethods.SWP_NOACTIVATE);
+        if (!IsHidden(handle))
         {
             return false;
         }
@@ -149,4 +174,7 @@ public sealed class WindowManager
             return false;
         }
     }
+
+    private static bool IsHidden(IntPtr handle)
+        => NativeMethods.IsWindow(handle) && !NativeMethods.IsWindowVisible(handle);
 }

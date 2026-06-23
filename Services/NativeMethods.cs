@@ -11,6 +11,11 @@ internal static class NativeMethods
     internal const int WM_HOTKEY = 0x0312;
     internal const int GW_OWNER = 4;
     internal const int DWMWA_CLOAKED = 14;
+    internal const uint SWP_NOSIZE = 0x0001;
+    internal const uint SWP_NOMOVE = 0x0002;
+    internal const uint SWP_NOZORDER = 0x0004;
+    internal const uint SWP_NOACTIVATE = 0x0010;
+    internal const uint SWP_HIDEWINDOW = 0x0080;
     internal const uint MOD_NOREPEAT = 0x4000;
 
     internal delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
@@ -41,6 +46,19 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    internal static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int x,
+        int y,
+        int cx,
+        int cy,
+        uint uFlags);
 
     [DllImport("user32.dll")]
     internal static extern bool SetForegroundWindow(IntPtr hWnd);

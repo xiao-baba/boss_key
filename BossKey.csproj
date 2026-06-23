@@ -16,6 +16,9 @@
     <PackageReference Include="MaterialDesignThemes" Version="5.3.2" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="tests\**\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="Assets\BossKey.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

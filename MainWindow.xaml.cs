@@ -476,14 +476,15 @@ public partial class MainWindow : Window
 
     private void HideSelectedFromHotkey()
     {
-        var selected = _windows.Where(window => window.IsSelected).ToList();
-        if (selected.Count == 0)
+        var targets = HotkeyHideTargetResolver.Resolve(_windows, _rules, _ruleMatcher).ToList();
+
+        if (targets.Count == 0)
         {
-            SetStatus("没有勾选窗口；如需按规则隐藏，请点击“按规则隐藏”");
+            SetStatus("请先勾选要隐藏的窗口；规则隐藏请点击“按规则隐藏”");
             return;
         }
 
-        HideWindows(selected);
+        HideWindows(targets);
     }
 
     private void HideSelectedWindows()
@@ -500,6 +501,7 @@ public partial class MainWindow : Window
 
     private void HideWindowsByRules()
     {
+        CommitPendingRuleEdits();
         SaveRules();
         var targets = _windowManager.GetOpenWindows()
             .Where(window => _ruleMatcher.IsMatch(window, _rules))
@@ -534,20 +536,13 @@ public partial class MainWindow : Window
         RefreshWindows();
         UpdateHiddenCount();
 
-        if (hidden == 0)
-        {
-            SetStatus("没有窗口被隐藏");
-            return hidden;
-        }
-
-        var message = $"已隐藏 {hidden} 个窗口";
-        if (restrictedCount > 0 && _settings.ShowAdminHint)
-        {
-            message += $"，其中 {restrictedCount} 个可能需要管理员权限";
-        }
-
+        var message = HideOperationStatus.Create(hidden, restrictedCount, _settings.ShowAdminHint);
         SetStatus(message);
-        _trayService?.ShowBalloon("老板键", message);
+        if (hidden > 0)
+        {
+            _trayService?.ShowBalloon("老板键", message);
+        }
+
         return hidden;
     }
 
@@ -633,6 +628,12 @@ public partial class MainWindow : Window
     {
         _settings.HideRules = _rules.ToList();
         SaveSettings();
+    }
+
+    private void CommitPendingRuleEdits()
+    {
+        RulesGrid.CommitEdit(DataGridEditingUnit.Cell, true);
+        RulesGrid.CommitEdit(DataGridEditingUnit.Row, true);
     }
 
     private void SaveSettings()
